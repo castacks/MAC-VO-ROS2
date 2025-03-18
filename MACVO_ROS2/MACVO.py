@@ -15,6 +15,7 @@ import os, sys
 import argparse
 import logging
 
+from .DispartyPublisher import DisparityPublisher
 from .MessageFactory import to_stamped_pose, from_image, to_pointcloud, to_image
 
 # Add the src directory to the Python path
@@ -48,9 +49,11 @@ class MACVONode(Node):
 
         pose_publish: str,      # Estimated pose of Left camera optical center, NED coordinate, geometry_msg/pose_stamped
         map_pc_publish: str,    # Dense mapping pointcloud, sensor_msg/pointcloud 
-        imageL_publish: str     # Scaled & cropped RGB image actually received by MAC-VO, sensor_msg/image
+        imageL_publish: str,     # Scaled & cropped RGB image actually received by MAC-VO, sensor_msg/image
+        disparity_publish: str | None,  # Scaled & cropped disparity computed by MAC-VO, sensor_msg/image, will not publish if set to None
     ) -> None:
         super().__init__("macvo")
+        self.coord_frame = "zed_lcam_initial_pose"  #FIXME: this is probably wrong?
         self.get_logger().set_level(logging.INFO)
         self.get_logger().info(f"{os.getcwd()}")
 
@@ -78,11 +81,15 @@ class MACVONode(Node):
         # End
         self.frame_fn = SmartResizeFrame({"height": 320, "width": 320, "interp": "bilinear"})
         #
-
+        
+        if disparity_publish:
+            self.disparity_publisher = DisparityPublisher(self, self.odometry.Frontend, disparity_publish, frame_id=self.coord_frame)
+            self.odometry.Frontend = self.disparity_publisher
+        else:
+            self.disparity_publisher = None
         self.odometry.register_on_optimize_finish(self.publish_data)
         
         self.time, self.prev_time = None, None
-        self.coord_frame = "zed_lcam_initial_pose"  #FIXME: this is probably wrong?
         
 
     def publish_data(self, system: MACVO):
@@ -117,6 +124,9 @@ class MACVONode(Node):
         imageR            = from_image(msg_imageR)
         
         # Instantiate a frame and scale to the desired height & width
+        if self.disparity_publisher is not None:
+            self.disparity_publisher.curr_timestamp = timestamp
+        
         stereo_frame = self.frame_fn(StereoFrame(
             idx    =[self.frame_id],
             time_ns=[timestamp.nanosec],
