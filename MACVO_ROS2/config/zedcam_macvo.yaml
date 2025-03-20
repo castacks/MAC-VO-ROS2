@@ -20,7 +20,7 @@ Odometry:
     # Profiling the system using torch, generate chrome json trace file.
     profile: false
 
-    mapping: false
+    mapping: true
 
   cov:
     obs:
