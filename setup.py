@@ -41,7 +41,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "macvo2 = macvo2.MACVO:main",
+            "macvo2 = macvo2.macvo:main",
         ],
     },
 )
