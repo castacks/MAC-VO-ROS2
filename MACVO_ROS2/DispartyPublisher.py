@@ -44,7 +44,7 @@ class DisparityPublisher(IFrontend):
         
         if (depth.disparity is not None) and (self.curr_timestamp is not None):
             disparity_msg = to_image(
-                depth.disparity.cpu().numpy().astype(np.uint16), 
+                depth.disparity[0].permute(1, 2, 0).cpu().numpy().astype(np.uint16), 
                 self.frame_id,
                 self.curr_timestamp,
                 encoding="mono16"

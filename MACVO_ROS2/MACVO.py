@@ -168,11 +168,12 @@ def main():
     # Create Node and start running
     node = MACVONode(
         config=Path(args.config),
-        imageL_subscribe="/zed/zed_node/left/image_rect_color",
-        imageR_subscribe="/zed/zed_node/right/image_rect_color",
-        pose_publish    ="/macvo/pose",
-        map_pc_publish  ="/macvo/map",
-        imageL_publish  ="/macvo/img",
+        imageL_subscribe  ="/zed/zed_node/left/image_rect_color",
+        imageR_subscribe  ="/zed/zed_node/right/image_rect_color",
+        pose_publish      ="/macvo/pose",
+        map_pc_publish    ="/macvo/map",
+        imageL_publish    ="/macvo/img",
+        disparity_publish ="/macvo/disp",
     )
     print('MACVO Node created.')
     rclpy.spin(node)
