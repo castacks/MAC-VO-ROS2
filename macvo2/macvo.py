@@ -42,7 +42,7 @@ class MACVO2Node(Node):
         #     str | None
         # ),  # Scaled & cropped disparity computed by MAC-VO, sensor_msg/image, will not publish if set to None
         super().__init__("macvo2_node")
-        self.coord_frame = "map"  # FIXME: this is probably wrong? Should be the camera optical center frame
+        self.coord_frame = "left_camera"  # FIXME: this is probably wrong? Should be the camera optical center frame
         self.frame_id = 0  # Frame ID
         self.init_time = None  # ROS2 time stamp
         self.get_logger().set_level(logging.INFO)
@@ -189,14 +189,11 @@ class MACVO2Node(Node):
         return int(time.sec * 1e9) + time.nanosec
 
     def receive_stereo(self, msg_imageL: Image, msg_imageR: Image) -> None:
-        self.get_logger().info(f"{self.odometry.graph}")
         imageL, timestamp = from_image(msg_imageL), msg_imageL.header.stamp
         imageR = from_image(msg_imageR)
         if self.init_time is None:
             self.init_time = timestamp
         elapsed = int(self.time_to_ns(timestamp) - self.time_to_ns(self.init_time))
-        self.get_logger().info(f"Frame {self.frame_id}, elapsed ns={elapsed}")
-
         # Instantiate a frame and scale to the desired height & width
         # if self.disparity_publisher is not None:
         #     self.disparity_publisher.curr_timestamp = timestamp
@@ -234,9 +231,7 @@ class MACVO2Node(Node):
                 ),
             )
         )
-        self.get_logger().info(f"Odometry job {self.frame_id} ready.")
         self.odometry.run(stereo_frame)
-        self.get_logger().info(f"Odometry job {self.frame_id} submitted.")
 
         # Pose-processing
         self.frame_id += 1
