@@ -32,19 +32,19 @@ else:
     from DataLoader import StereoFrame, StereoData, SmartResizeFrame
     from Utility.Config import load_config
 
+
 PACKAGE_NAME = "macvo2"
 
-# MAC-VO Node
 
-
-class MACVONode(Node):
+class MACVO2Node(Node):
     def __init__(self) -> None:
         # disparity_publish: (
         #     str | None
         # ),  # Scaled & cropped disparity computed by MAC-VO, sensor_msg/image, will not publish if set to None
         super().__init__("macvo2_node")
-        self.coord_frame = "map"  # FIXME: this is probably wrong?
-        self.frame_id = 0
+        self.coord_frame = "map"  # FIXME: this is probably wrong? Should be the camera optical center frame
+        self.frame_id = 0  # Frame ID
+        self.init_time = None  # ROS2 time stamp
         self.get_logger().set_level(logging.INFO)
         self.get_logger().info(f"{os.getcwd()}")
 
@@ -59,7 +59,7 @@ class MACVONode(Node):
         self.sync_stereo = ApproximateTimeSynchronizer(
             [self.imageL_sub, self.imageR_sub], queue_size=2, slop=0.1
         )
-        self.sync_stereo.registerCallback(self.receive_frame)
+        self.sync_stereo.registerCallback(self.receive_stereo)
 
         # Publishers
         self.pose_send = self.create_publisher(
@@ -108,7 +108,7 @@ class MACVONode(Node):
         # End
 
         # Load inference shape and preprocessor --------------------
-        self.frame_fn = SmartResizeFrame(
+        self.preprocess = SmartResizeFrame(
             {
                 "height": self.get_integer_param("inference_dim_u"),
                 "width": self.get_integer_param("inference_dim_v"),
@@ -158,9 +158,11 @@ class MACVONode(Node):
         # Latest pose
         pose = pp.SE3(system.graph.frames.data["pose"][-1])
         time_ns = int(system.graph.frames.data["time_ns"][-1].item())
+
         time = Time()
-        time.sec = time_ns // 1_000_000_000
-        time.nanosec = time_ns % 1_000_000_000
+        time.sec = (time_ns // 1_000_000_000) + self.init_time.sec
+        time.nanosec = (time_ns % 1_000_000_000) + self.init_time.nanosec
+
         pose_msg = to_stamped_pose(pose, self.coord_frame, time)
 
         # Latest map
@@ -182,21 +184,29 @@ class MACVONode(Node):
         self.pose_send.publish(pose_msg)
         self.map_send.publish(map_pc_msg)
 
+    @staticmethod
+    def time_to_ns(time: Time) -> int:
+        return int(time.sec * 1e9) + time.nanosec
+
     def receive_stereo(self, msg_imageL: Image, msg_imageR: Image) -> None:
         self.get_logger().info(f"{self.odometry.graph}")
         imageL, timestamp = from_image(msg_imageL), msg_imageL.header.stamp
         imageR = from_image(msg_imageR)
+        if self.init_time is None:
+            self.init_time = timestamp
+        elapsed = int(self.time_to_ns(timestamp) - self.time_to_ns(self.init_time))
+        self.get_logger().info(f"Frame {self.frame_id}, elapsed ns={elapsed}")
 
         # Instantiate a frame and scale to the desired height & width
-        if self.disparity_publisher is not None:
-            self.disparity_publisher.curr_timestamp = timestamp
+        # if self.disparity_publisher is not None:
+        #     self.disparity_publisher.curr_timestamp = timestamp
 
-        stereo_frame = self.frame_fn(
+        stereo_frame = self.preprocess(
             StereoFrame(
                 idx=[self.frame_id],
-                time_ns=[timestamp.nanosec],
+                time_ns=[elapsed],
                 stereo=StereoData(
-                    T_BS=pp.identity_SE3(1),
+                    T_BS=pp.identity_SE3(1, dtype=torch.float),
                     K=torch.tensor(
                         [
                             [
@@ -204,10 +214,11 @@ class MACVONode(Node):
                                 [0.0, self.camera_info.k[4], self.camera_info.k[5]],
                                 [0.0, 0.0, 1.0],
                             ]
-                        ]
+                        ],
+                        dtype=torch.float,
                     ),
-                    baseline=torch.tensor([self.baseline]),
-                    time_ns=[timestamp.nanosec],
+                    baseline=torch.tensor([self.baseline], dtype=torch.float),
+                    time_ns=[elapsed],
                     height=imageL.shape[0],
                     width=imageL.shape[1],
                     imageL=torch.tensor(imageL)[..., :3]
@@ -223,7 +234,9 @@ class MACVONode(Node):
                 ),
             )
         )
+        self.get_logger().info(f"Odometry job {self.frame_id} ready.")
         self.odometry.run(stereo_frame)
+        self.get_logger().info(f"Odometry job {self.frame_id} submitted.")
 
         # Pose-processing
         self.frame_id += 1
@@ -234,7 +247,7 @@ class MACVONode(Node):
 
 def main():
     rclpy.init()
-    node = MACVONode()
+    node = MACVO2Node()
     rclpy.spin(node)
 
     node.destroy_node()
