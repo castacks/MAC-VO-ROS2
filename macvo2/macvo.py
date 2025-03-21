@@ -42,11 +42,12 @@ class MACVO2Node(Node):
         #     str | None
         # ),  # Scaled & cropped disparity computed by MAC-VO, sensor_msg/image, will not publish if set to None
         super().__init__("macvo2_node")
-        self.coord_frame = "left_camera"  # FIXME: this is probably wrong? Should be the camera optical center frame
+        self.coord_frame = "map_ned"  # FIXME: this is probably wrong? Should be the camera optical center frame
         self.frame_id = 0  # Frame ID
         self.init_time = None  # ROS2 time stamp
         self.get_logger().set_level(logging.INFO)
         self.get_logger().info(f"{os.getcwd()}")
+        self.declared_parameters = set()
 
         # Declare subscriptions and publishers ----------------
         # Subscriptions
@@ -107,24 +108,18 @@ class MACVO2Node(Node):
         self.get_camera_params()
         # End
 
-        # Load inference shape and preprocessor --------------------
-        self.preprocess = SmartResizeFrame(
-            {
-                "height": self.get_integer_param("inference_dim_u"),
-                "width": self.get_integer_param("inference_dim_v"),
-                "interp": "bilinear",
-            }
-        )
-        # End
-
         self.time, self.prev_time = None, None
 
     def get_integer_param(self, parameter_name: str) -> int:
-        self.declare_parameter(parameter_name, rclpy.Parameter.Type.INTEGER)
+        if parameter_name not in self.declared_parameters:
+            self.declare_parameter(parameter_name, rclpy.Parameter.Type.INTEGER)
+            self.declared_parameters.add(parameter_name)
         return self.get_parameter(parameter_name).get_parameter_value().integer_value
 
     def get_string_param(self, parameter_name: str) -> str:
-        self.declare_parameter(parameter_name, rclpy.Parameter.Type.STRING)
+        if parameter_name not in self.declared_parameters:
+            self.declare_parameter(parameter_name, rclpy.Parameter.Type.STRING)
+            self.declared_parameters.add(parameter_name)
         return self.get_parameter(parameter_name).get_parameter_value().string_value
 
     def get_camera_params(self, client_time_out: int = 1):
@@ -198,7 +193,13 @@ class MACVO2Node(Node):
         # if self.disparity_publisher is not None:
         #     self.disparity_publisher.curr_timestamp = timestamp
 
-        stereo_frame = self.preprocess(
+        stereo_frame = SmartResizeFrame(
+            {
+                "height": self.get_integer_param("inference_dim_u"),
+                "width": self.get_integer_param("inference_dim_v"),
+                "interp": "bilinear",
+            }
+        )(
             StereoFrame(
                 idx=[self.frame_id],
                 time_ns=[elapsed],
