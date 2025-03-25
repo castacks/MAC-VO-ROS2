@@ -91,16 +91,14 @@ class MACVO2Node(Node):
             os.chdir(original_cwd)
 
         # Publish disparity if needed.
-        # if disparity_publish:
-        #     self.disparity_publisher = DisparityPublisher(
-        #         self,
-        #         self.odometry.Frontend,
-        #         disparity_publish,
-        #         frame_id=self.coord_frame,
-        #     )
-        #     self.odometry.Frontend = self.disparity_publisher
-        # else:
-        #     self.disparity_publisher = None
+        self.disparity_publisher = DisparityPublisher(
+            self,
+            self.odometry.Frontend,
+            macvo_config_path = self.get_string_param("disp_pub_topic"),
+            frame_id=self.coord_frame,
+        )
+        
+        self.odometry.Frontend = self.disparity_publisher
         self.disparity_publisher = None
         # End
 
