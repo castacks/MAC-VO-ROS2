@@ -146,6 +146,7 @@ class MACVO2Node(Node):
                 return
             else:
                 self.get_logger().error(f"Failed to get camera params from server")
+                raise Exception("Failed to get camera params from server")
 
     def publish_data(self, system: MACVO):
         # Latest pose
