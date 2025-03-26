@@ -94,7 +94,7 @@ class MACVO2Node(Node):
         self.disparity_publisher = DisparityPublisher(
             self,
             self.odometry.Frontend,
-            macvo_config_path = self.get_string_param("disp_pub_topic"),
+            publish_topic=self.get_string_param("disp_pub_topic"),
             frame_id=self.coord_frame,
         )
         
