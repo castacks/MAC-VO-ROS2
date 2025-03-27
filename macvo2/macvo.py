@@ -5,6 +5,7 @@ import pypose as pp
 from rclpy.node import Node
 from sensor_msgs.msg import Image, PointCloud
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from ament_index_python.packages import get_package_share_directory
 from builtin_interfaces.msg import Time
@@ -15,7 +16,7 @@ import os, sys
 import logging
 
 from .DispartyPublisher import DisparityPublisher
-from .MessageFactory import to_stamped_pose, from_image, to_pointcloud, to_image
+from .MessageFactory import to_stamped_pose, from_image, to_pointcloud, to_image, to_nav_msgs_odmetry
 from sensor_interfaces.srv import GetCameraParams
 
 # Add the src directory to the Python path
@@ -63,9 +64,13 @@ class MACVO2Node(Node):
         self.sync_stereo.registerCallback(self.receive_stereo)
 
         # Publishers
-        self.pose_send = self.create_publisher(
-            PoseStamped, self.get_string_param("pose_pub_topic"), qos_profile=1
+        # self.pose_send = self.create_publisher(
+        #     PoseStamped, self.get_string_param("pose_pub_topic"), qos_profile=1
+        # )
+        self.odom_send = self.create_publisher(
+            Odometry, self.get_string_param("odom_pub_topic"), qos_profile=1
         )
+
         self.map_send = self.create_publisher(
             PointCloud, self.get_string_param("point_pub_topic"), qos_profile=1
         )
@@ -157,7 +162,8 @@ class MACVO2Node(Node):
         time.sec = (time_ns // 1_000_000_000) + self.init_time.sec
         time.nanosec = (time_ns % 1_000_000_000) + self.init_time.nanosec
 
-        pose_msg = to_stamped_pose(pose, self.coord_frame, time)
+        # pose_msg = to_stamped_pose(pose, self.coord_frame, time)
+        odom_msg = to_nav_msgs_odmetry(pose, self.coord_frame, time)
 
         # Latest map
         if system.mapping:
@@ -175,7 +181,8 @@ class MACVO2Node(Node):
             time=time,
         )
 
-        self.pose_send.publish(pose_msg)
+        # self.pose_send.publish(pose_msg)
+        self.odom_send.publish(odom_msg)
         self.map_send.publish(map_pc_msg)
 
     @staticmethod

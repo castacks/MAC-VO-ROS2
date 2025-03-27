@@ -1,4 +1,5 @@
 import std_msgs.msg as std_msgs
+import nav_msgs.msg as nav_msgs
 import sensor_msgs.msg as sensor_msgs
 import geometry_msgs.msg as geometry_msgs
 from builtin_interfaces.msg import Time
@@ -79,6 +80,23 @@ def to_stamped_pose(pose: pp.LieTensor | torch.Tensor, frame_id: str, time: Time
     out_msg.pose.orientation.w = pose_[6].item()
     return out_msg
 
+def to_nav_msgs_odmetry(pose: pp.LieTensor | torch.Tensor, frame_id: str, time: Time) -> nav_msgs.Odometry:
+    pose_ = pose.detach().cpu()
+    out_msg                 = nav_msgs.Odometry()
+    out_msg.header          = std_msgs.Header()
+    out_msg.header.stamp    = time
+    out_msg.header.frame_id = frame_id
+    out_msg.child_frame_id  = frame_id
+    
+    out_msg.pose.pose.position.x = pose_[0].item()
+    out_msg.pose.pose.position.y = pose_[1].item()
+    out_msg.pose.pose.position.z = pose_[2].item()
+    
+    out_msg.pose.pose.orientation.x = pose_[3].item()
+    out_msg.pose.pose.orientation.y = pose_[4].item()
+    out_msg.pose.pose.orientation.z = pose_[5].item()
+    out_msg.pose.pose.orientation.w = pose_[6].item()
+    return out_msg
 
 def from_image(msg: sensor_msgs.Image) -> np.ndarray:
     if msg.encoding not in _name_to_dtypes:
