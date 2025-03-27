@@ -86,7 +86,7 @@ def to_nav_msgs_odmetry(pose: pp.LieTensor | torch.Tensor, frame_id: str, time: 
     out_msg.header          = std_msgs.Header()
     out_msg.header.stamp    = time
     out_msg.header.frame_id = frame_id
-    out_msg.child_frame_id  = frame_id
+    out_msg.child_frame_id  = "base_link"  # TODO: UNHARDCODE
     
     out_msg.pose.pose.position.x = pose_[0].item()
     out_msg.pose.pose.position.y = pose_[1].item()

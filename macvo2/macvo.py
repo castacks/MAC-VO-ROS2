@@ -44,11 +44,16 @@ class MACVO2Node(Node):
         # ),  # Scaled & cropped disparity computed by MAC-VO, sensor_msg/image, will not publish if set to None
         super().__init__("macvo2_node")
         self.coord_frame = "map_ned"  # FIXME: this is probably wrong? Should be the camera optical center frame
+        # self.coord_frame = "right_camera"  # FIXME: this is probably wrong? Should be the camera optical center frame
         self.frame_id = 0  # Frame ID
         self.init_time = None  # ROS2 time stamp
         self.get_logger().set_level(logging.INFO)
         self.get_logger().info(f"{os.getcwd()}")
         self.declared_parameters = set()
+
+        # Load the Camera model ------------------------------------
+        self.get_camera_params()
+        # End
 
         # Declare subscriptions and publishers ----------------
         # Subscriptions
@@ -104,12 +109,8 @@ class MACVO2Node(Node):
         )
         
         self.odometry.Frontend = self.disparity_publisher
-        self.disparity_publisher = None
         # End
 
-        # Load the Camera model ------------------------------------
-        self.get_camera_params()
-        # End
 
         self.time, self.prev_time = None, None
 
