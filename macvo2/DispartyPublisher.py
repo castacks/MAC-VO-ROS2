@@ -23,6 +23,7 @@ else:
 
 class DisparityPublisher(IFrontend):
     def __init__(self, node: Node, internal_module: IFrontend, publish_topic: str, frame_id: str):
+        self.ros2_node       = node
         self.internal_module = internal_module
         self.publish_topic   = publish_topic
         self.publisher       = node.create_publisher(Image, publish_topic, qos_profile=1)

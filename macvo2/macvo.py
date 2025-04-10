@@ -39,10 +39,9 @@ PACKAGE_NAME = "macvo2"
 
 class MACVO2Node(Node):
     def __init__(self) -> None:
-        # disparity_publish: (
-        #     str | None
-        # ),  # Scaled & cropped disparity computed by MAC-VO, sensor_msg/image, will not publish if set to None
         super().__init__("macvo2_node")
+        self.coord_frame = "map_ned"  # FIXME: this is probably wrong? Should be the camera optical center frame
+        self.frame_id = 0      # Frame ID
         self.init_time = None  # ROS2 time stamp
         self.get_logger().set_level(logging.INFO)
         self.get_logger().info(f"{os.getcwd()}")
@@ -107,10 +106,13 @@ class MACVO2Node(Node):
             publish_topic=self.get_string_param("disp_pub_topic"),
             frame_id=self.coord_frame,
         )
-        
         self.odometry.Frontend = self.disparity_publisher
         # End
 
+        # Load the Camera model ------------------------------------
+        self.camera_info = None
+        self.get_camera_params()
+        # End
 
         self.time, self.prev_time = None, None
 
@@ -191,15 +193,17 @@ class MACVO2Node(Node):
         return int(time.sec * 1e9) + time.nanosec
 
     def receive_stereo(self, msg_imageL: Image, msg_imageR: Image) -> None:
+        if self.camera_info is None:
+            self.get_logger().error("Skipped a frame since camera info is not received yet")
+            return
         imageL, timestamp = from_image(msg_imageL), msg_imageL.header.stamp
         imageR = from_image(msg_imageR)
         if self.init_time is None:
             self.init_time = timestamp
         elapsed = int(self.time_to_ns(timestamp) - self.time_to_ns(self.init_time))
+        self.disparity_publisher.curr_timestamp = timestamp
+        
         # Instantiate a frame and scale to the desired height & width
-        # if self.disparity_publisher is not None:
-        #     self.disparity_publisher.curr_timestamp = timestamp
-
         stereo_frame = SmartResizeFrame(
             {
                 "height": self.get_integer_param("inference_dim_u"),
