@@ -22,6 +22,8 @@ Odometry:
 
     mapping: false
 
+    online: true
+
   cov:
     obs:
       type: MatchCovariance
@@ -85,10 +87,9 @@ Odometry:
     args:
   
   optimizer:
-    type: ReprojectOptimizer
+    type: TwoFrame_PGO
     args:
       device: cpu
       vectorize: true
       parallel: true
-      constraint: none
-      use_fancy_cov: false
+      graph_type: icp
