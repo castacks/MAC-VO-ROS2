@@ -52,14 +52,20 @@ Odometry:
       max_depth_cov: 0.005
       mask_width: 32
 
+  # frontend:
+  #   type: CUDAGraph_FlowFormerCovFrontend
+  #   args:
+  #     device: *device
+  #     weight: /root/model_weights/MACVO_FrontendCov.pth
+  #     dtype: fp32
+  #     max_flow: -1
+  #     enforce_positive_disparity: false
   frontend:
-    type: CUDAGraph_FlowFormerCovFrontend
+    type: UniFlowMatchCovFrontend
     args:
-      device: *device
-      weight: /root/model_weights/MACVO_FrontendCov.pth
-      dtype: fp32
-      max_flow: -1
-      enforce_positive_disparity: false
+      weight: /root/model_weights/dsta_efficient.ckpt
+      mask: true
+      data_norm_type: radio
 
   motion:
     type: StaticMotionModel
